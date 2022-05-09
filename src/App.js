@@ -1,81 +1,66 @@
-import React, { Component } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import CardList from "./Components/card-list/card-list.component";
 import "./App.css";
+import SearchBox from "./Components/search-box/search-box.component";
 
-class App extends Component {
-  constructor() {
-    super();
+const App = () => {
+  const [searchField, setSearchField] = useState("");
+  const [allPokemon, setAllPokemon] = useState([]);
+  const [filteredAllPokemon, setFilteredAllPokemon] = useState(allPokemon);
 
-    this.state = {
-      allPokemon: [],
-      searchField: "",
-    };
-  }
+  const getPokemon = useCallback(async () => {
+    const response = await fetch(
+      `https://pokeapi.co/api/v2/pokemon?limit=151&offset=0`
+    );
 
-  componentDidMount() {
-    const fetchPokemon = () => {
-      fetch("https://pokeapi.co/api/v2/pokemon?limit=5&offset=0")
-        .then((response) => response.json())
-        .then((allPokemon) => {
-          allPokemon.results.forEach((pokemon) => {
-            fetchPokemonData(pokemon);
-          });
-        });
-    };
+    const { results } = await response.json();
+    // console.log(results);
 
-    const fetchPokemonData = (pokemon) => {
-      let url = pokemon.url;
-      console.log(url);
-      fetch(url)
-        .then((response) => response.json())
-        .then((pokeData) =>
-          this.setState(
-            () => {
-              return { allPokemon: [pokeData] };
-            },
-            () => {
-              console.log(this.state);
-            }
-          )
-        );
-    };
+    const responseArray = await Promise.all(
+      results.map(async ({ url }) => {
+        // console.log(url);
 
-    fetchPokemon();
-  }
+        const data = await fetch(url);
+        // console.log(data);
 
-  render() {
-    const { allPokemon, searchField } = this.state;
+        const pokemon = await data.json();
+        // console.log(pokemon);
 
-    const filteredPokemon = allPokemon.filter((pokemon) => {
+        return pokemon; // returns pokemon object
+      })
+    );
+
+    setAllPokemon(responseArray);
+  }, []);
+
+  const onSearchChange = (event) => {
+    const searchFieldString = event.target.value.toLowerCase();
+    setSearchField(searchFieldString);
+  };
+
+  useEffect(() => {
+    getPokemon();
+  }, [getPokemon]);
+
+  useEffect(() => {
+    const newFilteredAllPokemon = allPokemon.filter((pokemon) => {
       return pokemon.name.toLowerCase().includes(searchField);
     });
 
-    return (
-      <div className="App">
-        <input
-          className="search-box"
-          type="search"
-          placeholder="search pokemon"
-          onChange={(event) => {
-            console.log(event.target.value);
-            const searchField = event.target.value.toLowerCase();
+    setFilteredAllPokemon(newFilteredAllPokemon);
+  }, [allPokemon, searchField]);
 
-            this.setState(() => {
-              return { searchField };
-            });
-          }}
-        />
-        ;
-        {filteredPokemon.map((pokeData) => {
-          return (
-            <div key={pokeData.id}>
-              <h1>{pokeData.name}</h1>
-              <img src={pokeData.sprites.front_default} alt="pokemon" />
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-}
+  return (
+    <div className="App">
+      <SearchBox
+        className="search-box"
+        type="search"
+        onChangeHandler={onSearchChange}
+        placeholder="search pokemon"
+      />
+      <CardList pokeData={filteredAllPokemon} />
+    </div>
+  );
+};
 
 export default App;
